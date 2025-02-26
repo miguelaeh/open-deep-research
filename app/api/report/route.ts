@@ -14,18 +14,17 @@ export async function POST(request: Request) {
       selectedResults,
       sources,
       prompt,
-      platformModel = 'google-gemini-flash',
+      model = 'google/gemini-2.0-flash-lite-preview-02-05:free',
     } = body as {
       selectedResults: Article[]
       sources: any[]
       prompt: string
-      platformModel: ModelVariant
+      model: ModelVariant
     }
 
-    // Only check rate limit if enabled and not using Ollama (local model)
-    const platform = platformModel.split('__')[0]
-    const model = platformModel.split('__')[1]
-    if (CONFIG.rateLimits.enabled && platform !== 'ollama') {
+    // Only check rate limit if enabled
+    const platform = model.split('/')[0]
+    if (CONFIG.rateLimits.enabled) {
       const { success } = await reportContentRatelimit.limit('report')
       if (!success) {
         return NextResponse.json(
@@ -60,8 +59,18 @@ export async function POST(request: Request) {
       )
     }
 
+    // Get the user BrainLink access token
+    const auth = request.headers.get("Authorization") || "";
+    if (!auth) {
+      return NextResponse.json({ error: "Missing auth header with BrainLink token" }, { status: 400 });
+    }
+    const brainLinkUserAccessToken = auth.split(" ")[1];
+    if (!brainLinkUserAccessToken) {
+      return NextResponse.json({ error: "Invalid auth header" }, { status: 400 });
+    }
+
     const generateSystemPrompt = (articles: Article[], userPrompt: string) => {
-      return `You are a research assistant tasked with creating a comprehensive report based on multiple sources. 
+      return `You are a research assistant tasked with creating a comprehensive report based on multiple sources.
 The report should specifically address this request: "${userPrompt}"
 
 Your report should:
@@ -71,21 +80,21 @@ Your report should:
 4. Use markdown formatting for emphasis, lists, and structure
 5. Integrate information from sources naturally without explicitly referencing them by number
 6. Maintain objectivity while addressing the specific aspects requested in the prompt
-7. Compare and contrast the information from each source, noting areas of consensus or points of contention. 
+7. Compare and contrast the information from each source, noting areas of consensus or points of contention.
 8. Showcase key insights, important data, or innovative ideas.
 
 Here are the source articles to analyze:
 
 ${articles
-  .map(
-    (article) => `
+          .map(
+            (article) => `
 Title: ${article.title}
 URL: ${article.url}
 Content: ${article.content}
 ---
 `
-  )
-  .join('\n')}
+          )
+          .join('\n')}
 
 Format the report as a JSON object with the following structure:
 {
@@ -116,7 +125,7 @@ Important: Do not use phrases like "Source 1" or "According to Source 2". Instea
     console.log('Model:', model)
 
     try {
-      const response = await generateWithModel(systemPrompt, platformModel)
+      const response = await generateWithModel(systemPrompt, model, brainLinkUserAccessToken)
 
       if (!response) {
         throw new Error('No response from model')

@@ -214,7 +214,7 @@ export async function POST(request: Request) {
 
       if (!googleResponse.ok) {
         const errorData = await googleResponse.json().catch(() => null)
-
+        console.error(JSON.stringify(errorData))
         // Check for quota exceeded error
         if (errorData?.error?.message?.includes('Quota exceeded')) {
           return NextResponse.json(

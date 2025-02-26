@@ -44,6 +44,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import * as BrainLink from "@brainlink/spa-sdk"
+import BrainLinkButton from '@brainlink/react-button'
 
 // Node type definitions
 const nodeTypes: NodeTypes = {
@@ -152,15 +154,15 @@ function useResearchFlow(
             return nds.map((node) =>
               node.id === selectionNode.id
                 ? {
-                    ...node,
-                    data: {
-                      ...node.data,
-                      results: [result, ...(node.data.results || [])],
-                    },
-                  }
+                  ...node,
+                  data: {
+                    ...node.data,
+                    results: [result, ...(node.data.results || [])],
+                  },
+                }
                 : node.id === searchNodeId
-                ? { ...node, data: { ...node.data, loading: false } }
-                : node
+                  ? { ...node, data: { ...node.data, loading: false } }
+                  : node
             )
           }
 
@@ -288,17 +290,30 @@ function useResearchFlow(
           throw new Error('No valid content found in selected results')
         }
 
+        if (!BrainLink.isConnected()) {
+          toast({
+            title: 'Brain linking is missing',
+            description: 'Please link your BrainLink brain first.',
+            variant: 'destructive',
+          })
+          return
+        }
+        const userAccessToken = await BrainLink.getUserToken();
+
         // Generate report
         const reportResponse = await fetch('/api/report', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userAccessToken}`
+          },
           body: JSON.stringify({
             selectedResults: validResults,
             sources: selectedResults,
             prompt:
               prompt ||
               'Provide comprehensive analysis of the selected sources.',
-            platformModel: selectedModel,
+            model: selectedModel,
           }),
         })
 
@@ -308,7 +323,7 @@ function useResearchFlow(
             .catch(() => ({ error: 'Failed to generate report' }))
           throw new Error(
             errorData.error ||
-              `Failed to generate report: ${reportResponse.status}`
+            `Failed to generate report: ${reportResponse.status}`
           )
         }
 
@@ -317,10 +332,13 @@ function useResearchFlow(
         // Generate search terms
         const searchTermsResponse = await fetch('/api/generate-question', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userAccessToken}`
+          },
           body: JSON.stringify({
             report,
-            platformModel: selectedModel,
+            model: selectedModel,
           }),
         })
 
@@ -330,7 +348,7 @@ function useResearchFlow(
             .catch(() => ({ error: 'Failed to generate search terms' }))
           throw new Error(
             errorData.error ||
-              `Failed to generate search terms: ${searchTermsResponse.status}`
+            `Failed to generate search terms: ${searchTermsResponse.status}`
           )
         }
 
@@ -447,7 +465,7 @@ function useResearchFlow(
             : (nodes?.length || 0) * 200,
           y: parentReportId
             ? (nodes?.find((n) => n.id === parentReportId)?.position.y || 0) +
-              400
+            400
             : 0,
         }
 
@@ -481,7 +499,7 @@ function useResearchFlow(
           body: JSON.stringify({
             query,
             timeFilter: 'all',
-            platformModel: selectedModel,
+            model: selectedModel,
           }),
         })
 
@@ -554,13 +572,13 @@ function useResearchFlow(
           nds.map((node) =>
             node.data.loading
               ? {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    loading: false,
-                    error: errorMsg,
-                  },
-                }
+                ...node,
+                data: {
+                  ...node.data,
+                  loading: false,
+                  error: errorMsg,
+                },
+              }
               : node
           )
         )
@@ -624,12 +642,23 @@ function useConsolidation(
           throw new Error('Need at least 2 valid reports to consolidate')
         }
 
+        if (!BrainLink.isConnected()) {
+          return {
+            success: false,
+            error: 'Brain linking is missing',
+          }
+        }
+        const userAccessToken = await BrainLink.getUserToken();
+
         const response = await fetch('/api/consolidate-report', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userAccessToken}`
+          },
           body: JSON.stringify({
             reports: reportsToConsolidate,
-            platformModel: selectedModel,
+            model: selectedModel,
           }),
         })
 
@@ -774,12 +803,12 @@ export default function FlowPage() {
           nds.map((node) =>
             node.id === reportId
               ? {
-                  ...node,
-                  data: {
-                    ...node.data,
-                    isSelected: !isCurrentlySelected,
-                  },
-                }
+                ...node,
+                data: {
+                  ...node.data,
+                  isSelected: !isCurrentlySelected,
+                },
+              }
               : node
           )
         )
@@ -996,7 +1025,7 @@ export default function FlowPage() {
                 ...nodeData,
                 onFileUpload: node.parentId
                   ? (file: File) =>
-                      handleFileUpload(file, node.id, node.parentId || '')
+                    handleFileUpload(file, node.id, node.parentId || '')
                   : undefined,
               },
             }
@@ -1203,6 +1232,7 @@ export default function FlowPage() {
               </>
             )}
           </Button>
+           <BrainLinkButton appClientId={process.env.NEXT_PUBLIC_BRAINLINK_APP_CLIENT_ID || ""} appCallbackUrl={window.location.href} />
         </div>
         <div className='flex flex-col sm:flex-row items-start sm:items-center gap-4'>
           <div className='flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto'>

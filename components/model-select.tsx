@@ -10,7 +10,7 @@ import {
 import type { PlatformModel } from '@/types'
 import { CONFIG } from '@/lib/config'
 
-const DEFAULT_MODEL = 'google__gemini-flash'
+const DEFAULT_MODEL = 'google/gemini-exp-1206:free'
 
 export const platformModels = Object.entries(CONFIG.platforms)
   .flatMap(([platform, config]) => {
@@ -18,7 +18,7 @@ export const platformModels = Object.entries(CONFIG.platforms)
 
     return Object.entries(config.models).map(([modelId, modelConfig]) => {
       return {
-        value: `${platform}__${modelId}`,
+        value: `${modelId}`,
         label: `${platform.charAt(0).toUpperCase() + platform.slice(1)} - ${
           modelConfig.label
         }`,

@@ -25,42 +25,33 @@ export const CONFIG = {
     google: {
       enabled: true,
       models: {
-        'gemini-flash': {
+        'google/gemini-2.0-flash-lite-preview-02-05:free': {
           enabled: true,
           label: 'Gemini Flash',
         },
-        'gemini-flash-thinking': {
+        'google/gemini-2.0-flash-thinking-exp:free': {
           enabled: true,
           label: 'Gemini Flash Thinking',
         },
-        'gemini-exp': {
-          enabled: false,
+        'google/gemini-exp-1206:free': {
+          enabled: true,
           label: 'Gemini Exp',
-        },
-      },
-    },
-    ollama: {
-      enabled: true,
-      models: {
-        'deepseek-r1:1.5b': {
-          enabled: false,
-          label: 'DeepSeek R1 1.5B',
         },
       },
     },
     openai: {
       enabled: true,
       models: {
-        'gpt-4o': {
-          enabled: false,
+        'openai/gpt-4o': {
+          enabled: true,
           label: 'GPT-4o',
         },
-        'o1-mini': {
-          enabled: false,
+        'openai/o1-mini': {
+          enabled: true,
           label: 'o1-mini',
         },
-        o1: {
-          enabled: false,
+        "openai/o1": {
+          enabled: true,
           label: 'o1',
         },
       },
@@ -68,35 +59,26 @@ export const CONFIG = {
     anthropic: {
       enabled: true,
       models: {
-        'sonnet-3.5': {
-          enabled: false,
-          label: 'Claude 3 Sonnet',
+        'anthropic/claude-3.7-sonnet': {
+          enabled: true,
+          label: 'Claude 3.7 Sonnet',
         },
-        'haiku-3.5': {
-          enabled: false,
-          label: 'Claude 3 Haiku',
+        'anthropic/claude-3.5-haiku': {
+          enabled: true,
+          label: 'Claude 3.5 Haiku',
         },
       },
     },
     deepseek: {
       enabled: true,
       models: {
-        chat: {
-          enabled: false,
-          label: 'Chat',
+        "deepseek/deepseek-chat": {
+          enabled: true,
+          label: 'Deepseek Chat',
         },
-        reasoner: {
-          enabled: false,
-          label: 'Reasoner',
-        },
-      },
-    },
-    openrouter: {
-      enabled: true,
-      models: {
-        'openrouter/auto': {
-          enabled: false,
-          label: 'Auto',
+        "deepseek/deepseek-r1": {
+          enabled: true,
+          label: 'Deepseek R1',
         },
       },
     },

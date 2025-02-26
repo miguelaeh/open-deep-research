@@ -18,12 +18,12 @@ export async function POST(request: Request) {
       prompt,
       results,
       isTestQuery = false,
-      platformModel = 'google__gemini-flash',
+      model = 'google/gemini-2.0-flash-lite-preview-02-05:free',
     } = (await request.json()) as {
       prompt: string
       results: SearchResultInput[]
       isTestQuery?: boolean
-      platformModel: ModelVariant
+      model: ModelVariant
     }
 
     if (!prompt || !results?.length) {
@@ -48,10 +48,8 @@ export async function POST(request: Request) {
       })
     }
 
-    // Only check rate limit if enabled and not using Ollama (local model)
-    const platform = platformModel.split('__')[0]
-    const model = platformModel.split('__')[1]
-    if (CONFIG.rateLimits.enabled && platform !== 'ollama') {
+    // Only check rate limit if enabled
+    if (CONFIG.rateLimits.enabled) {
       const { success } = await reportContentRatelimit.limit(
         'agentOptimizations'
       )
@@ -63,29 +61,14 @@ export async function POST(request: Request) {
       }
     }
 
-    // Check if selected platform is enabled
-    const platformConfig =
-      CONFIG.platforms[platform as keyof typeof CONFIG.platforms]
-    if (!platformConfig?.enabled) {
-      return NextResponse.json(
-        { error: `${platform} platform is not enabled` },
-        { status: 400 }
-      )
+    // Get the user BrainLink access token
+    const auth = request.headers.get("Authorization") || "";
+    if (!auth) {
+      return NextResponse.json({ error: "Missing auth header with BrainLink token" }, { status: 400 });
     }
-
-    // Check if selected model exists and is enabled
-    const modelConfig = (platformConfig as any).models[model]
-    if (!modelConfig) {
-      return NextResponse.json(
-        { error: `${model} model does not exist` },
-        { status: 400 }
-      )
-    }
-    if (!modelConfig.enabled) {
-      return NextResponse.json(
-        { error: `${model} model is disabled` },
-        { status: 400 }
-      )
+    const brainLinkUserAccessToken = auth.split(" ")[1];
+    if (!brainLinkUserAccessToken) {
+      return NextResponse.json({ error: "Invalid auth header" }, { status: 400 });
     }
 
     const systemPrompt = `You are a research assistant tasked with analyzing search results for relevance to a research topic.
@@ -134,7 +117,7 @@ Format your response as a JSON object with this structure:
 Focus on finding results that provide unique, high-quality information relevant to the research topic.`
 
     try {
-      const response = await generateWithModel(systemPrompt, platformModel)
+      const response = await generateWithModel(systemPrompt, model, brainLinkUserAccessToken);
 
       if (!response) {
         throw new Error('No response from model')

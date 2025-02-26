@@ -39,6 +39,8 @@ import { KnowledgeBaseSidebar } from '@/components/knowledge-base-sidebar'
 import { ReportActions } from '@/components/report-actions'
 import { ModelSelect, DEFAULT_MODEL } from '@/components/model-select'
 import { handleLocalFile, SUPPORTED_FILE_TYPES } from '@/lib/file-upload'
+import BrainLinkButton from "@brainlink/react-button"
+import * as BrainLink from "@brainlink/spa-sdk";
 
 const timeFilters = [
   { value: 'all', label: 'Any time' },
@@ -307,10 +309,23 @@ export default function Home() {
               })
           )
 
+          if (!BrainLink.isConnected()) {
+            toast({
+              title: 'Brain linking is missing',
+              description: 'Please link your BrainLink brain first.',
+              variant: 'destructive',
+            })
+            return
+          }
+          const userAccessToken = await BrainLink.getUserToken();
+
           const response = await retryWithBackoff(async () => {
             const res = await fetch('/api/report', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${userAccessToken}`
+              },
               body: JSON.stringify({
                 selectedResults: contentResults.filter((r) =>
                   r.content?.trim()
@@ -319,7 +334,7 @@ export default function Home() {
                   state.selectedResults.includes(r.id)
                 ),
                 prompt: `${state.query}. Provide comprehensive analysis.`,
-                platformModel: state.selectedModel,
+                model: state.selectedModel,
               }),
             })
 
@@ -457,15 +472,28 @@ export default function Home() {
       })
 
       try {
+        if (!BrainLink.isConnected()) {
+          toast({
+            title: 'Brain linking is missing',
+            description: 'Please link your BrainLink brain first.',
+            variant: 'destructive',
+          })
+          return
+        }
+        const userAccessToken = await BrainLink.getUserToken();
+
         // Step 1: Get optimized query and research prompt
         const { query, optimizedPrompt, explanation, suggestedStructure } =
           await retryWithBackoff(async () => {
             const response = await fetch('/api/optimize-research', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${userAccessToken}`
+              },
               body: JSON.stringify({
                 prompt: state.reportPrompt,
-                platformModel: state.selectedModel,
+                model: state.selectedModel,
               }),
             })
             if (!response.ok) {
@@ -548,7 +576,9 @@ export default function Home() {
         const { rankings, analysis } = await retryWithBackoff(async () => {
           const response = await fetch('/api/analyze-results', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${userAccessToken}` },
             body: JSON.stringify({
               prompt: optimizedPrompt,
               results: allResults.map((r: SearchResult) => ({
@@ -558,7 +588,7 @@ export default function Home() {
                 content: r.content,
               })),
               isTestQuery: query.toLowerCase() === 'test',
-              platformModel: state.selectedModel,
+              model: state.selectedModel,
             }),
           })
           if (!response.ok) {
@@ -709,12 +739,15 @@ export default function Home() {
         const reportResponse = await retryWithBackoff(() =>
           fetch('/api/report', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${userAccessToken}`
+            },
             body: JSON.stringify({
               selectedResults: contentResults.filter((r) => r.content?.trim()),
               sources: selected,
               prompt: `${optimizedPrompt}. Provide comprehensive analysis.`,
-              platformModel: state.selectedModel,
+              model: state.selectedModel,
             }),
           }).then((res) => res.json())
         )
@@ -884,6 +917,7 @@ export default function Home() {
                     View Code
                   </a>
                 </Button>
+                <BrainLinkButton appClientId={process.env.NEXT_PUBLIC_BRAINLINK_APP_CLIENT_ID || ""} />
               </div>
               <div className='flex justify-center items-center'>
                 <div className='flex items-center space-x-2'>

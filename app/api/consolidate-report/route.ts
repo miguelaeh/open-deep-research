@@ -6,10 +6,9 @@ import { reportContentRatelimit } from '@/lib/redis'
 
 export async function POST(request: Request) {
   try {
-    const { reports, platformModel } = await request.json()
-    const [platform, model] = platformModel.split('__')
+    const { reports, model } = await request.json()
 
-    if (CONFIG.rateLimits.enabled && platform !== 'ollama') {
+    if (CONFIG.rateLimits.enabled) {
       const { success } = await reportContentRatelimit.limit('report')
       if (!success) {
         return NextResponse.json(
@@ -19,10 +18,19 @@ export async function POST(request: Request) {
       }
     }
 
+    // Get the user BrainLink access token
+    const auth = request.headers.get("Authorization") || "";
+    if (!auth) {
+      return NextResponse.json({ error: "Missing auth header with BrainLink token" }, { status: 400 });
+    }
+    const brainLinkUserAccessToken = auth.split(" ")[1];
+    if (!brainLinkUserAccessToken) {
+      return NextResponse.json({ error: "Invalid auth header" }, { status: 400 });
+    }
+
     console.log('Consolidating reports:', {
       numReports: reports.length,
       reportTitles: reports.map((r: Report) => r.title),
-      platform,
       model,
     })
 
@@ -36,17 +44,17 @@ export async function POST(request: Request) {
     const prompt = `Create a comprehensive consolidated report that synthesizes the following research reports:
 
 ${reports
-  .map(
-    (report: Report, index: number) => `
+        .map(
+          (report: Report, index: number) => `
 Report ${index + 1} Title: ${report.title}
 Report ${index + 1} Summary: ${report.summary}
 Key Findings:
 ${report.sections
-  ?.map((section) => `- ${section.title}: ${section.content}`)
-  .join('\n')}
+              ?.map((section) => `- ${section.title}: ${section.content}`)
+              .join('\n')}
 `
-  )
-  .join('\n\n')}
+        )
+        .join('\n\n')}
 
 Analyze and synthesize these reports to create a comprehensive consolidated report that:
 1. Identifies common themes and patterns across the reports
@@ -76,7 +84,7 @@ Return the response in the following JSON format:
     console.log('Generated prompt:', prompt)
 
     try {
-      const response = await generateWithModel(prompt, platformModel)
+      const response = await generateWithModel(prompt, model, brainLinkUserAccessToken)
 
       if (!response) {
         throw new Error('No response from model')

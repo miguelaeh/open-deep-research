@@ -4,10 +4,19 @@ import { generateWithModel } from '@/lib/models'
 import { reportContentRatelimit } from '@/lib/redis'
 export async function POST(request: Request) {
   try {
-    const { report, platformModel } = await request.json()
-    const platform = platformModel.split('__')[0]
+    const { report, model } = await request.json()
 
-    if (CONFIG.rateLimits.enabled && platform !== 'ollama') {
+    // Get the user BrainLink access token
+    const auth = request.headers.get("Authorization") || "";
+    if (!auth) {
+      return NextResponse.json({ error: "Missing auth header with BrainLink token" }, { status: 400 });
+    }
+    const brainLinkUserAccessToken = auth.split(" ")[1];
+    if (!brainLinkUserAccessToken) {
+      return NextResponse.json({ error: "Invalid auth header" }, { status: 400 });
+    }
+
+    if (CONFIG.rateLimits.enabled) {
       const { success } = await reportContentRatelimit.limit(
         'agentOptimizations'
       )
@@ -30,11 +39,11 @@ Summary: ${report.summary}
 
 Key Sections:
 ${report.sections
-  ?.map(
-    (section: { title: string; content: string }) =>
-      `${section.title}: ${section.content}`
-  )
-  .join('\n')}
+        ?.map(
+          (section: { title: string; content: string }) =>
+            `${section.title}: ${section.content}`
+        )
+        .join('\n')}
 
 Generate exactly 3 search terms and return them in the following JSON format:
 {
@@ -48,7 +57,7 @@ Generate exactly 3 search terms and return them in the following JSON format:
 The search terms should be specific and focused on unexplored aspects of the topic.`
 
     try {
-      const response = await generateWithModel(prompt, platformModel)
+      const response = await generateWithModel(prompt, model, brainLinkUserAccessToken)
 
       if (!response) {
         throw new Error('No response from model')
