@@ -1232,7 +1232,7 @@ export default function FlowPage() {
               </>
             )}
           </Button>
-           <BrainLinkButton appClientId={process.env.NEXT_PUBLIC_BRAINLINK_APP_CLIENT_ID || ""} appCallbackUrl={window.location.href} />
+           <BrainLinkButton appClientId={process.env.NEXT_PUBLIC_BRAINLINK_APP_CLIENT_ID || ""} />
         </div>
         <div className='flex flex-col sm:flex-row items-start sm:items-center gap-4'>
           <div className='flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto'>
